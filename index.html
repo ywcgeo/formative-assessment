@@ -1,0 +1,1996 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>形成性評核評分系統 · Firebase 雲端同步</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        }
+        body {
+            background: #f4f7fc;
+            padding: 2rem 1.5rem;
+            color: #1e293b;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        header {
+            margin-bottom: 1.5rem;
+        }
+        h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+        h1 small {
+            font-size: 1rem;
+            font-weight: 400;
+            color: #475569;
+            background: #e2e8f0;
+            padding: 0.25rem 0.75rem;
+            border-radius: 30px;
+        }
+        .subhead {
+            color: #475569;
+            margin-top: 0.5rem;
+            font-size: 1rem;
+            border-left: 4px solid #3b82f6;
+            padding-left: 1rem;
+            background: #eef2ff;
+            padding: 0.75rem 1rem;
+            border-radius: 0 12px 12px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .cloud-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.8rem;
+            font-weight: 500;
+            padding: 0.3rem 0.9rem;
+            border-radius: 40px;
+            background: #f1f5f9;
+            color: #475569;
+        }
+        .cloud-status.online {
+            background: #ecfdf5;
+            color: #065f46;
+        }
+        .cloud-status.syncing {
+            background: #fffbeb;
+            color: #92400e;
+        }
+        .cloud-status.error {
+            background: #fef2f2;
+            color: #991b1b;
+        }
+        .cloud-status .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            background: white;
+            padding: 0.4rem;
+            border-radius: 60px;
+            border: 1px solid #e2e8f0;
+            width: fit-content;
+            flex-wrap: wrap;
+        }
+        .tab-btn {
+            background: transparent;
+            border: none;
+            padding: 0.6rem 1.5rem;
+            border-radius: 40px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #475569;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .tab-btn.active {
+            background: #0f172a;
+            color: white;
+        }
+        .tab-btn:not(.active):hover {
+            background: #f1f5f9;
+        }
+
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        .filter-bar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 1.25rem;
+            background: white;
+            border-radius: 60px;
+            padding: 0.75rem 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+        }
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+        }
+        .filter-group label {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #334155;
+            white-space: nowrap;
+        }
+        select, input[type="text"], input[type="number"] {
+            appearance: none;
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 40px;
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #0f172a;
+            outline: none;
+        }
+        select {
+            padding-right: 2rem;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            cursor: pointer;
+            min-width: 120px;
+        }
+        select:focus, input:focus {
+            outline: 2px solid #3b82f6;
+            outline-offset: 1px;
+        }
+        .filter-tag {
+            background: #eef2ff;
+            color: #1e40af;
+            padding: 0.3rem 1rem;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .filter-tag button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            color: #1e40af;
+            display: flex;
+            align-items: center;
+            padding: 0;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1.25fr 0.75fr;
+            gap: 2rem;
+            align-items: start;
+        }
+        @media (max-width: 950px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+        .card {
+            background: white;
+            border-radius: 24px;
+            padding: 1.75rem;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.03);
+            border: 1px solid #e9eef3;
+        }
+        .card h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #0f172a;
+            border-bottom: 2px solid #eef2f6;
+            padding-bottom: 0.75rem;
+            flex-wrap: wrap;
+        }
+        .card h2 .badge {
+            background: #3b82f6;
+            color: white;
+            font-size: 0.7rem;
+            font-weight: 500;
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            margin-left: auto;
+        }
+        .card h2 .badge.group { background: #8b5cf6; }
+
+        .item-row {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 0.75rem;
+            background: #f8fafc;
+            padding: 0.75rem 1rem;
+            border-radius: 14px;
+            border: 1px solid #e9eef3;
+        }
+        .item-row input[type="text"] { flex: 2; min-width: 120px; }
+        .item-row input[type="number"] { width: 90px; }
+        .item-row .field-label {
+            font-size: 0.75rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+        .item-row .field-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+        .btn-sm {
+            background: white;
+            border: 1px solid #cbd5e1;
+            padding: 0.4rem 0.9rem;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #1e293b;
+            cursor: pointer;
+            transition: 0.1s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .btn-sm:hover { background: #f1f5f9; }
+        .btn-sm.danger { color: #dc2626; border-color: #fecaca; }
+        .btn-sm.danger:hover { background: #fef2f2; }
+        .btn-add {
+            background: #f1f5f9;
+            border: 1px dashed #94a3b8;
+            color: #475569;
+            padding: 0.5rem 1.2rem;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: 0.1s;
+        }
+        .btn-add:hover { background: #e2e8f0; border-color: #64748b; }
+        .weight-total {
+            font-size: 0.85rem;
+            padding: 0.5rem 1rem;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+        }
+        .weight-total.ok { background: #ecfdf5; color: #065f46; }
+        .weight-total.warn { background: #fffbeb; color: #92400e; }
+        .weight-total.error { background: #fef2f2; color: #991b1b; }
+
+        .section-divider {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin: 1.5rem 0 1rem;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #0f172a;
+        }
+        .section-divider:first-of-type { margin-top: 0; }
+        .section-divider .line { flex: 1; height: 1px; background: #e2e8f0; }
+        .section-divider .icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+        .icon-group { background: #f3e8ff; color: #7c3aed; }
+        .icon-person { background: #dbeafe; color: #2563eb; }
+
+        .student-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+        .student-item {
+            background: #fafcff;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 1.25rem;
+            transition: all 0.15s;
+        }
+        .student-item.group-item { background: #fdfaff; border-color: #e9d5ff; }
+        .student-item:hover { border-color: #b9d3f0; box-shadow: 0 4px 10px rgba(59,130,246,0.06); }
+        .student-item.group-item:hover { border-color: #c4b5fd; box-shadow: 0 4px 10px rgba(139,92,246,0.08); }
+        .student-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .student-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .student-name .avatar {
+            background: #dbeafe;
+            color: #1e40af;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .student-name .avatar.group { background: #ede9fe; color: #6d28d9; }
+        .class-tag {
+            font-size: 0.65rem;
+            font-weight: 500;
+            background: #e2e8f0;
+            color: #334155;
+            padding: 0.15rem 0.6rem;
+            border-radius: 30px;
+        }
+        .group-tag {
+            font-size: 0.65rem;
+            font-weight: 500;
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 0.15rem 0.6rem;
+            border-radius: 30px;
+        }
+        .student-id-tag {
+            font-size: 0.65rem;
+            font-weight: 600;
+            background: #fef3c7;
+            color: #92400e;
+            padding: 0.15rem 0.6rem;
+            border-radius: 30px;
+            font-family: 'SF Mono', 'Consolas', monospace;
+        }
+        .member-count {
+            font-size: 0.65rem;
+            font-weight: 500;
+            background: #f3e8ff;
+            color: #7c3aed;
+            padding: 0.15rem 0.6rem;
+            border-radius: 30px;
+        }
+        .total-badge {
+            background: #0f172a;
+            color: white;
+            padding: 0.3rem 0.9rem;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .total-badge.group-badge { background: #7c3aed; }
+        .total-badge span {
+            font-weight: 700;
+            font-size: 1rem;
+            margin-left: 0.2rem;
+        }
+        .slider-group {
+            display: grid;
+            grid-template-columns: 120px 1fr 45px;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.6rem;
+        }
+        .slider-group label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #334155;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+        .slider-group label .weight {
+            color: #64748b;
+            font-weight: 400;
+            font-size: 0.7rem;
+        }
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            background: #e2e8f0;
+            border-radius: 10px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #3b82f6;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            transition: 0.1s;
+        }
+        .group-item input[type="range"]::-webkit-slider-thumb { background: #8b5cf6; }
+        .group-item input[type="range"]::-webkit-slider-thumb:hover { background: #7c3aed; }
+        input[type="range"]::-webkit-slider-thumb:hover { background: #2563eb; transform: scale(1.1); }
+        .score-value {
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-align: right;
+            color: #0f172a;
+            background: #f1f5f9;
+            padding: 0.15rem 0.4rem;
+            border-radius: 8px;
+        }
+        .group-item .score-value { background: #f3e8ff; color: #6d28d9; }
+        .rubric-note {
+            font-size: 0.72rem;
+            color: #64748b;
+            margin-top: 0.6rem;
+            padding-top: 0.5rem;
+            border-top: 1px dashed #cbd5e1;
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .rubric-note span { display: flex; align-items: center; gap: 3px; }
+        .rubric-note i {
+            font-style: normal;
+            background: #e9eef3;
+            padding: 0.1rem 0.4rem;
+            border-radius: 20px;
+            font-size: 0.65rem;
+            font-weight: 500;
+        }
+        .side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        .stat-list { display: flex; flex-direction: column; gap: 0.9rem; }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid #eef2f6;
+        }
+        .stat-label { font-size: 0.9rem; color: #475569; }
+        .stat-value { font-weight: 600; color: #0f172a; }
+        .progress-bar-bg {
+            background: #e2e8f0;
+            height: 8px;
+            border-radius: 10px;
+            width: 100%;
+            margin-top: 0.3rem;
+        }
+        .progress-bar-fill {
+            background: #3b82f6;
+            height: 8px;
+            border-radius: 10px;
+            width: 0%;
+            transition: width 0.2s;
+        }
+        .progress-bar-fill.group { background: #8b5cf6; }
+        .feedback-area {
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 1rem;
+            font-size: 0.85rem;
+            color: #334155;
+            border: 1px solid #e2e8f0;
+            margin-top: 1rem;
+        }
+        .feedback-area p { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+        .feedback-area .emoji { font-size: 1rem; }
+        .btn {
+            background: white;
+            border: 1px solid #cbd5e1;
+            padding: 0.6rem 1.2rem;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #1e293b;
+            cursor: pointer;
+            transition: 0.1s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .btn-primary { background: #0f172a; border-color: #0f172a; color: white; }
+        .btn-primary:hover { background: #1e293b; }
+        .btn:hover { background: #f1f5f9; }
+        .btn-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem; }
+        .legend {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            font-size: 0.75rem;
+            color: #475569;
+            margin-top: 0.75rem;
+        }
+        .legend-item { display: flex; align-items: center; gap: 0.3rem; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .dot-blue { background: #3b82f6; }
+        .dot-purple { background: #8b5cf6; }
+
+        .group-stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 0.5rem;
+        }
+        .group-stat-item {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 0.75rem;
+            border: 1px solid #e9eef3;
+        }
+        .group-stat-item .group-name {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #1e40af;
+            margin-bottom: 0.25rem;
+        }
+        .group-stat-item .group-avg {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .group-stat-item .group-count {
+            font-size: 0.7rem;
+            color: #64748b;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #0f172a;
+            color: white;
+            padding: 0.8rem 1.5rem;
+            border-radius: 40px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+            z-index: 999;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+        }
+        .toast.show { opacity: 1; }
+        .member-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin-top: 0.5rem;
+        }
+        .member-pill {
+            background: #eef2ff;
+            color: #1e40af;
+            padding: 0.2rem 0.7rem;
+            border-radius: 30px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .member-pill .sid {
+            background: #fef3c7;
+            color: #92400e;
+            padding: 0 0.35rem;
+            border-radius: 20px;
+            font-size: 0.65rem;
+            font-family: 'SF Mono', 'Consolas', monospace;
+            font-weight: 600;
+        }
+        .member-editor {
+            margin-top: 0.6rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .member-editor-header {
+            display: grid;
+            grid-template-columns: 1fr 1fr 40px;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            background: #f1f5f9;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #475569;
+        }
+        .member-editor-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 40px;
+            gap: 0.5rem;
+            padding: 0.4rem 0.75rem;
+            align-items: center;
+            border-top: 1px solid #eef2f6;
+        }
+        .member-editor-row input {
+            width: 100%;
+            padding: 0.35rem 0.6rem;
+            border-radius: 30px;
+            border: 1px solid #cbd5e1;
+            font-size: 0.82rem;
+            background: white;
+        }
+        .member-editor-row .btn-sm {
+            padding: 0.3rem 0.5rem;
+            justify-content: center;
+        }
+        .btn-add-member {
+            background: #f8fafc;
+            border: 1px dashed #cbd5e1;
+            color: #475569;
+            padding: 0.4rem 0.8rem;
+            border-radius: 30px;
+            font-size: 0.78rem;
+            font-weight: 500;
+            cursor: pointer;
+            margin: 0.4rem 0.75rem 0.6rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .btn-add-member:hover { background: #e2e8f0; }
+
+        .export-group {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: 0.75rem;
+        }
+        .export-group .btn {
+            flex: 1;
+            justify-content: center;
+            min-width: 120px;
+        }
+        .btn-csv { background: #059669; border-color: #059669; color: white; }
+        .btn-csv:hover { background: #047857; }
+
+        /* Firebase 連線提示 */
+        .firebase-hint {
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            border-radius: 16px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.85rem;
+            color: #92400e;
+            display: none;
+        }
+        .firebase-hint.show { display: block; }
+        .firebase-hint code {
+            background: #fef3c7;
+            padding: 0.1rem 0.4rem;
+            border-radius: 6px;
+            font-family: 'SF Mono', 'Consolas', monospace;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>
+            📋 形成性評核評分系統
+            <small>Firebase 雲端同步</small>
+        </h1>
+        <div class="subhead">
+            <span>⚡ 老師設定（含學號）· 小組/個人評分 · 一鍵匯出 · 即時雲端儲存</span>
+            <span class="cloud-status" id="cloudStatus">
+                <span class="dot"></span>
+                <span id="cloudStatusText">未連線</span>
+            </span>
+        </div>
+    </header>
+
+    <!-- Firebase 設定提示（若未設定 config 時顯示） -->
+    <div class="firebase-hint" id="firebaseHint">
+        ⚠️ 尚未設定 Firebase。請在程式碼中替換 <code>firebaseConfig</code> 的 <code>YOUR_API_KEY</code>、<code>YOUR_PROJECT_ID</code> 等值，或前往
+        <a href="https://console.firebase.google.com/" target="_blank" style="color:#92400e; font-weight:600;">Firebase Console</a> 建立專案並啟用 Firestore。
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="setup">⚙️ 老師設定</button>
+        <button class="tab-btn" data-tab="scoring">📝 評分與統計</button>
+    </div>
+
+    <!-- ==================== 老師設定面板 ==================== -->
+    <div id="panel-setup" class="tab-panel active">
+        <div class="grid" style="grid-template-columns: 1fr;">
+            <div class="card">
+                <h2>
+                    📌 評核項目設定
+                    <span class="badge" id="weightBadge">權重合計 100%</span>
+                </h2>
+                <p style="font-size:0.85rem; color:#64748b; margin-bottom:1rem;">
+                    小組評核與個人評核使用相同的項目與權重。請輸入項目名稱、權重（%）與滿分，權重合計必須為 100%。
+                </p>
+                <div id="criteriaSetup"></div>
+                <button class="btn-add" id="addCriterionBtn" style="margin-top:0.5rem;">+ 新增評核項目</button>
+                <div id="weightStatus" style="margin-top:1rem;"></div>
+            </div>
+
+            <div class="card">
+                <h2>
+                    👥 組別與學生名單
+                    <span class="badge group" id="groupCountBadge">0 組</span>
+                </h2>
+                <p style="font-size:0.85rem; color:#64748b; margin-bottom:1rem;">
+                    為每個組別指定班級、組別名稱與成員。每位成員需輸入<strong>姓名</strong>與<strong>學號</strong>。小組評核時整組共用一組分數，個人評核則依此名單產生。
+                </p>
+                <div id="groupsSetup"></div>
+                <button class="btn-add" id="addGroupBtn" style="margin-top:0.5rem;">+ 新增組別</button>
+            </div>
+
+            <div class="btn-row">
+                <button class="btn btn-primary" id="applySetupBtn">✅ 套用設定並前往評分</button>
+                <button class="btn" id="resetSetupBtn">↺ 恢復預設設定</button>
+                <button class="btn" id="clearAllBtn" style="color:#dc2626; border-color:#fecaca;">🗑️ 清空全部</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 評分與統計面板 ==================== -->
+    <div id="panel-scoring" class="tab-panel">
+        <div class="filter-bar" id="filterBar">
+            <div class="filter-group">
+                <label>🏫 班級：</label>
+                <select id="classSelect"><option value="all">全部班級</option></select>
+            </div>
+            <div class="filter-group">
+                <label>👥 組別：</label>
+                <select id="groupSelect"><option value="all">全部組別</option></select>
+            </div>
+            <div id="activeFilters" style="display:flex; gap:0.5rem; margin-left:auto;"></div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h2>
+                    📝 評核清單
+                    <span class="badge" id="studentCountBadge">0 人</span>
+                </h2>
+
+                <div class="section-divider">
+                    <span class="icon icon-group">👥</span>
+                    <span>小組評核</span>
+                    <span class="line"></span>
+                </div>
+                <div class="student-list" id="groupList"></div>
+
+                <div class="section-divider">
+                    <span class="icon icon-person">🧑</span>
+                    <span>個人評核</span>
+                    <span class="line"></span>
+                </div>
+                <div class="student-list" id="studentList"></div>
+            </div>
+
+            <div class="side-panel">
+                <div class="card">
+                    <h2>📊 個人評核統計</h2>
+                    <div class="stat-list">
+                        <div class="stat-row"><span class="stat-label">平均總分</span><span class="stat-value" id="classAvg">0.0</span></div>
+                        <div class="stat-row"><span class="stat-label">最高總分</span><span class="stat-value" id="classMax">0.0</span></div>
+                        <div class="stat-row"><span class="stat-label">最低總分</span><span class="stat-value" id="classMin">0.0</span></div>
+                        <div class="stat-row"><span class="stat-label">達標人數 (≥70)</span><span class="stat-value" id="passCount">0</span></div>
+                    </div>
+                    <div class="progress-bar-bg" style="margin-top:1rem;">
+                        <div class="progress-bar-fill" id="classProgress" style="width:0%"></div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#64748b; margin-top:0.3rem;">
+                        <span>0%</span><span>達標率</span><span>100%</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>🧩 小組評核統計</h2>
+                    <div id="groupStatsContainer"><div class="empty-state">尚無小組資料</div></div>
+                </div>
+
+                <div class="card">
+                    <h2>📌 評分權重說明</h2>
+                    <div id="weightsDisplay"></div>
+                    <div class="legend">
+                        <div class="legend-item"><span class="dot dot-blue"></span> 個人評核</div>
+                        <div class="legend-item"><span class="dot dot-purple"></span> 小組評核</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>💬 即時回饋摘要</h2>
+                    <div id="feedbackSummary" class="feedback-area">
+                        <p><span class="emoji">📈</span> 調整滑桿以查看回饋</p>
+                    </div>
+                    <div class="export-group">
+                        <button class="btn" id="resetBtn">↺ 重置分數</button>
+                        <button class="btn btn-csv" id="exportCsvBtn">⬇️ 一鍵匯出 CSV</button>
+                        <button class="btn btn-primary" id="exportBtn">📋 文字摘要</button>
+                    </div>
+                    <p style="font-size:0.72rem; color:#64748b; margin-top:0.5rem;">
+                        💡 所有變更會自動同步至 Firebase Firestore。CSV 可直接用 Excel 開啟。
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ============================================================ -->
+<!-- Firebase SDK（使用 CDN 相容版本）                              -->
+<!-- ============================================================ -->
+<script type="module">
+    // ============================================================
+    // 🔥 Firebase 設定（請替換為您的專案設定）
+    // ============================================================
+    const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_PROJECT_ID.appspot.com",
+        messagingSenderId: "YOUR_SENDER_ID",
+        appId: "YOUR_APP_ID"
+    };
+
+    // 檢查是否已設定
+    const isConfigured = !firebaseConfig.apiKey.includes('YOUR_');
+    if (!isConfigured) {
+        document.getElementById('firebaseHint').classList.add('show');
+        document.getElementById('cloudStatusText').textContent = '未設定 Firebase';
+        document.getElementById('cloudStatus').className = 'cloud-status error';
+    }
+
+    // 動態載入 Firebase SDK
+    let db = null;
+    let firebaseReady = false;
+
+    if (isConfigured) {
+        try {
+            const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+            const { getFirestore, doc, onSnapshot, setDoc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            firebaseReady = true;
+
+            // 綁定到全域供後續使用
+            window.__firebase = { db, doc, onSnapshot, setDoc, getDoc };
+        } catch (err) {
+            console.error('Firebase 初始化失敗:', err);
+            document.getElementById('firebaseHint').classList.add('show');
+            document.getElementById('cloudStatusText').textContent = 'Firebase 連線失敗';
+            document.getElementById('cloudStatus').className = 'cloud-status error';
+        }
+    }
+
+    // ============================================================
+    // 資料模型與狀態
+    // ============================================================
+    const DEFAULT_CRITERIA = [
+        { key: 'quiz', label: '隨堂小測', weight: 20, max: 100, icon: '📝' },
+        { key: 'assignment', label: '作業', weight: 30, max: 100, icon: '📚' },
+        { key: 'project', label: '專題里程碑', weight: 30, max: 100, icon: '🧩' },
+        { key: 'peer', label: '同伴互評', weight: 10, max: 100, icon: '🤝' },
+        { key: 'reflection', label: '反思日誌', weight: 10, max: 100, icon: '🧠' }
+    ];
+
+    const DEFAULT_GROUPS = [
+        { className: '一年A班', groupName: '第一組', members: [
+            { name: '陳品妤', studentId: 'A1101' },
+            { name: '林俊宏', studentId: 'A1102' }
+        ]},
+        { className: '一年A班', groupName: '第二組', members: [
+            { name: '張家瑋', studentId: 'A1103' },
+            { name: '黃柏翰', studentId: 'A1104' }
+        ]},
+        { className: '一年B班', groupName: '第二組', members: [
+            { name: '李雅婷', studentId: 'B2101' }
+        ]},
+        { className: '一年B班', groupName: '第三組', members: [
+            { name: '王宏哲', studentId: 'B2102' },
+            { name: '趙怡君', studentId: 'B2103' }
+        ]},
+        { className: '一年C班', groupName: '第一組', members: [
+            { name: '吳采玟', studentId: 'C3101' }
+        ]}
+    ];
+
+    // 狀態
+    let criteria = JSON.parse(JSON.stringify(DEFAULT_CRITERIA));
+    let groupDefs = JSON.parse(JSON.stringify(DEFAULT_GROUPS));
+    let groupScores = {};
+    let studentScores = {};
+
+    let editingCriteria = JSON.parse(JSON.stringify(DEFAULT_CRITERIA));
+    let editingGroups = JSON.parse(JSON.stringify(DEFAULT_GROUPS));
+
+    let currentClassFilter = 'all';
+    let currentGroupFilter = 'all';
+
+    // Firestore 文件參照（單一文件儲存所有資料）
+    const DOC_PATH = 'formativeAssessment/current';
+    let unsubscribeSnapshot = null;
+    let isRemoteUpdate = false; // 避免無限迴圈
+    let saveTimer = null;
+
+    // 工具
+    const groupKey = (className, groupName) => `${className}||${groupName}`;
+    const studentKey = (className, groupName, studentId) => `${className}||${groupName}||${studentId}`;
+
+    function computeTotal(scores) {
+        if (!scores) return 0;
+        let total = 0;
+        criteria.forEach(c => {
+            const raw = scores[c.key] ?? 0;
+            total += (raw / c.max) * (c.weight / 100) * 100;
+        });
+        return Math.round(total * 10) / 10;
+    }
+
+    function getFeedback(total) {
+        if (total >= 90) return { emoji: '🌟', text: '優秀！掌握度極高，可擔任小老師。' };
+        if (total >= 80) return { emoji: '✅', text: '良好，持續保持，可挑戰進階題目。' };
+        if (total >= 70) return { emoji: '📘', text: '達標，建議針對較弱項目加強練習。' };
+        if (total >= 60) return { emoji: '🔔', text: '接近達標，請多利用回饋與訂正。' };
+        return { emoji: '💡', text: '需要更多支持，建議與教師討論學習策略。' };
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        clearTimeout(t._timer);
+        t._timer = setTimeout(() => t.classList.remove('show'), 2200);
+    }
+
+    function setCloudStatus(status, text) {
+        const el = document.getElementById('cloudStatus');
+        const txt = document.getElementById('cloudStatusText');
+        el.className = 'cloud-status ' + status;
+        txt.textContent = text;
+    }
+
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.tab === tabName);
+        });
+        document.querySelectorAll('.tab-panel').forEach(p => {
+            p.classList.toggle('active', p.id === `panel-${tabName}`);
+        });
+        if (tabName === 'scoring') refreshScoringView();
+    }
+
+    // ============================================================
+    // 設定面板：評核項目
+    // ============================================================
+    function renderCriteriaSetup() {
+        const container = document.getElementById('criteriaSetup');
+        container.innerHTML = '';
+
+        editingCriteria.forEach((c, idx) => {
+            const row = document.createElement('div');
+            row.className = 'item-row';
+            row.innerHTML = `
+                <div class="field-group" style="flex:0 0 32px;">
+                    <span class="field-label">圖示</span>
+                    <input type="text" value="${c.icon}" data-idx="${idx}" data-field="icon" style="width:48px; text-align:center;" maxlength="2">
+                </div>
+                <div class="field-group" style="flex:2; min-width:120px;">
+                    <span class="field-label">項目名稱</span>
+                    <input type="text" value="${c.label}" data-idx="${idx}" data-field="label">
+                </div>
+                <div class="field-group" style="flex:0 0 100px;">
+                    <span class="field-label">權重 (%)</span>
+                    <input type="number" value="${c.weight}" data-idx="${idx}" data-field="weight" min="0" max="100" step="1">
+                </div>
+                <div class="field-group" style="flex:0 0 100px;">
+                    <span class="field-label">滿分</span>
+                    <input type="number" value="${c.max}" data-idx="${idx}" data-field="max" min="1" step="1">
+                </div>
+                <button class="btn-sm danger" data-idx="${idx}" data-action="remove-criterion">✕ 移除</button>
+            `;
+            container.appendChild(row);
+        });
+
+        container.querySelectorAll('input').forEach(inp => {
+            inp.addEventListener('input', (e) => {
+                const idx = parseInt(e.target.dataset.idx, 10);
+                const field = e.target.dataset.field;
+                let val = e.target.value;
+                if (field === 'weight' || field === 'max') val = parseFloat(val) || 0;
+                editingCriteria[idx][field] = val;
+                updateWeightStatus();
+            });
+        });
+
+        container.querySelectorAll('[data-action="remove-criterion"]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const idx = parseInt(e.target.dataset.idx, 10);
+                editingCriteria.splice(idx, 1);
+                renderCriteriaSetup();
+                updateWeightStatus();
+            });
+        });
+
+        updateWeightStatus();
+    }
+
+    function updateWeightStatus() {
+        const total = editingCriteria.reduce((sum, c) => sum + (Number(c.weight) || 0), 0);
+        const el = document.getElementById('weightStatus');
+        const badge = document.getElementById('weightBadge');
+        let cls = 'error', msg = `⚠️ 權重合計 ${total}%，必須為 100% 才能套用`;
+        if (Math.abs(total - 100) < 0.01) {
+            cls = 'ok';
+            msg = `✅ 權重合計 100%，設定正確`;
+        } else if (total > 0 && total < 100) {
+            cls = 'warn';
+            msg = `⚠️ 權重合計 ${total}%，尚缺 ${100 - total}%`;
+        }
+        el.innerHTML = `<div class="weight-total ${cls}">${msg}</div>`;
+        badge.textContent = `權重合計 ${total}%`;
+        badge.style.background = cls === 'ok' ? '#10b981' : (cls === 'warn' ? '#f59e0b' : '#dc2626');
+    }
+
+    // ============================================================
+    // 設定面板：組別與學生（含學號）
+    // ============================================================
+    function renderGroupsSetup() {
+        const container = document.getElementById('groupsSetup');
+        container.innerHTML = '';
+
+        editingGroups.forEach((g, idx) => {
+            const row = document.createElement('div');
+            row.className = 'item-row';
+            row.style.flexDirection = 'column';
+            row.style.alignItems = 'stretch';
+
+            const topRow = document.createElement('div');
+            topRow.style.display = 'flex';
+            topRow.style.gap = '0.75rem';
+            topRow.style.flexWrap = 'wrap';
+            topRow.style.alignItems = 'flex-end';
+            topRow.innerHTML = `
+                <div class="field-group" style="flex:1; min-width:110px;">
+                    <span class="field-label">班級</span>
+                    <input type="text" value="${g.className}" data-idx="${idx}" data-field="className" placeholder="例：一年A班">
+                </div>
+                <div class="field-group" style="flex:1; min-width:100px;">
+                    <span class="field-label">組別名稱</span>
+                    <input type="text" value="${g.groupName}" data-idx="${idx}" data-field="groupName" placeholder="例：第一組">
+                </div>
+                <button class="btn-sm danger" data-idx="${idx}" data-action="remove-group">✕ 移除組別</button>
+            `;
+            row.appendChild(topRow);
+
+            const memberSection = document.createElement('div');
+            memberSection.style.marginTop = '0.5rem';
+            let memberRowsHtml = '';
+            g.members.forEach((m, mIdx) => {
+                memberRowsHtml += `
+                    <div class="member-editor-row">
+                        <input type="text" value="${m.name || ''}" data-idx="${idx}" data-midx="${mIdx}" data-field="name" placeholder="姓名">
+                        <input type="text" value="${m.studentId || ''}" data-idx="${idx}" data-midx="${mIdx}" data-field="studentId" placeholder="學號">
+                        <button class="btn-sm danger" data-idx="${idx}" data-midx="${mIdx}" data-action="remove-member">✕</button>
+                    </div>
+                `;
+            });
+            memberSection.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.4rem;">
+                    <span class="field-label">成員名單（姓名 + 學號）</span>
+                    <span style="font-size:0.7rem; color:#64748b;">目前 ${g.members.length} 位</span>
+                </div>
+                <div class="member-editor">
+                    <div class="member-editor-header">
+                        <span>姓名</span>
+                        <span>學號</span>
+                        <span></span>
+                    </div>
+                    ${memberRowsHtml || '<div style="padding:0.75rem; font-size:0.78rem; color:#94a3b8; text-align:center;">尚未新增成員</div>'}
+                    <button class="btn-add-member" data-idx="${idx}" data-action="add-member">+ 新增成員</button>
+                </div>
+                <div class="member-pills">
+                    ${g.members.map(m => `<span class="member-pill">👤 ${m.name || '（未命名）'} <span class="sid">${m.studentId || '—'}</span></span>`).join('')}
+                </div>
+            `;
+            row.appendChild(memberSection);
+            container.appendChild(row);
+        });
+
+        container.querySelectorAll('input').forEach(inp => {
+            inp.addEventListener('input', (e) => {
+                const idx = parseInt(e.target.dataset.idx, 10);
+                const field = e.target.dataset.field;
+                const midx = e.target.dataset.midx;
+                const val = e.target.value;
+                if (midx !== undefined) {
+                    const mIdx = parseInt(midx, 10);
+                    editingGroups[idx].members[mIdx][field] = val;
+                } else {
+                    editingGroups[idx][field] = val;
+                }
+            });
+        });
+        container.querySelectorAll('input[data-field="name"], input[data-field="studentId"]').forEach(inp => {
+            inp.addEventListener('blur', () => renderGroupsSetup());
+        });
+
+        container.querySelectorAll('[data-action="remove-group"]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const idx = parseInt(e.target.dataset.idx, 10);
+                editingGroups.splice(idx, 1);
+                renderGroupsSetup();
+                document.getElementById('groupCountBadge').textContent = `${editingGroups.length} 組`;
+            });
+        });
+
+        container.querySelectorAll('[data-action="add-member"]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const idx = parseInt(e.target.dataset.idx, 10);
+                editingGroups[idx].members.push({ name: '', studentId: '' });
+                renderGroupsSetup();
+            });
+        });
+
+        container.querySelectorAll('[data-action="remove-member"]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const idx = parseInt(e.target.dataset.idx, 10);
+                const mIdx = parseInt(e.target.dataset.midx, 10);
+                editingGroups[idx].members.splice(mIdx, 1);
+                renderGroupsSetup();
+            });
+        });
+
+        document.getElementById('groupCountBadge').textContent = `${editingGroups.length} 組`;
+    }
+
+    // ============================================================
+    // 套用設定
+    // ============================================================
+    function applySetup() {
+        const totalWeight = editingCriteria.reduce((sum, c) => sum + (Number(c.weight) || 0), 0);
+        if (Math.abs(totalWeight - 100) > 0.01) {
+            showToast(`❌ 權重合計 ${totalWeight}%，必須為 100% 才能套用`);
+            return;
+        }
+        if (editingCriteria.length === 0) { showToast('❌ 至少需要一個評核項目'); return; }
+        for (const c of editingCriteria) {
+            if (!c.label.trim()) { showToast('❌ 項目名稱不能為空'); return; }
+            if (!(c.max > 0)) { showToast('❌ 滿分必須大於 0'); return; }
+        }
+        if (editingGroups.length === 0) { showToast('❌ 至少需要一個組別'); return; }
+        for (const g of editingGroups) {
+            if (!g.className.trim() || !g.groupName.trim()) { showToast('❌ 班級與組別名稱不能為空'); return; }
+            if (g.members.length === 0) { showToast(`❌ 組別「${g.groupName}」至少需要一位成員`); return; }
+            for (const m of g.members) {
+                if (!m.name.trim()) { showToast(`❌ 組別「${g.groupName}」有成員未填姓名`); return; }
+                if (!m.studentId.trim()) { showToast(`❌ 成員「${m.name}」未填學號`); return; }
+            }
+        }
+        for (const g of editingGroups) {
+            const ids = new Set();
+            for (const m of g.members) {
+                if (ids.has(m.studentId)) {
+                    showToast(`❌ 組別「${g.groupName}」學號「${m.studentId}」重複`);
+                    return;
+                }
+                ids.add(m.studentId);
+            }
+        }
+        const groupKeys = new Set();
+        for (const g of editingGroups) {
+            const k = groupKey(g.className, g.groupName);
+            if (groupKeys.has(k)) { showToast(`❌ 組別「${g.className} · ${g.groupName}」重複`); return; }
+            groupKeys.add(k);
+        }
+
+        criteria = JSON.parse(JSON.stringify(editingCriteria));
+
+        const oldGroupScores = groupScores;
+        const oldStudentScores = studentScores;
+        groupScores = {};
+        studentScores = {};
+
+        editingGroups.forEach(g => {
+            const gk = groupKey(g.className, g.groupName);
+            const oldG = oldGroupScores[gk];
+            const newG = {};
+            criteria.forEach(c => {
+                if (oldG && oldG[c.key] !== undefined) newG[c.key] = Math.min(oldG[c.key], c.max);
+                else newG[c.key] = Math.round(c.max * 0.75);
+            });
+            groupScores[gk] = newG;
+
+            g.members.forEach(m => {
+                const sk = studentKey(g.className, g.groupName, m.studentId);
+                const oldS = oldStudentScores[sk];
+                const newS = {};
+                criteria.forEach(c => {
+                    if (oldS && oldS[c.key] !== undefined) newS[c.key] = Math.min(oldS[c.key], c.max);
+                    else newS[c.key] = Math.round(c.max * 0.75);
+                });
+                studentScores[sk] = newS;
+            });
+        });
+
+        groupDefs = JSON.parse(JSON.stringify(editingGroups));
+        currentClassFilter = 'all';
+        currentGroupFilter = 'all';
+
+        showToast('✅ 設定已套用');
+        // 儲存到 Firebase
+        saveToFirebase();
+        switchTab('scoring');
+    }
+
+    // ============================================================
+    // Firebase 儲存與監聽
+    // ============================================================
+    function getFirebaseData() {
+        return {
+            criteria: criteria,
+            groupDefs: groupDefs,
+            groupScores: groupScores,
+            studentScores: studentScores,
+            updatedAt: new Date().toISOString()
+        };
+    }
+
+    async function saveToFirebase() {
+        if (!firebaseReady) return;
+        const { db, doc, setDoc } = window.__firebase;
+        try {
+            setCloudStatus('syncing', '同步中…');
+            await setDoc(doc(db, DOC_PATH), getFirebaseData());
+            setCloudStatus('online', '已同步');
+        } catch (err) {
+            console.error('Firebase 儲存失敗:', err);
+            setCloudStatus('error', '同步失敗');
+        }
+    }
+
+    function debouncedSave() {
+        if (!firebaseReady) return;
+        if (saveTimer) clearTimeout(saveTimer);
+        saveTimer = setTimeout(() => {
+            saveToFirebase();
+        }, 800);
+    }
+
+    async function loadFromFirebase() {
+        if (!firebaseReady) return false;
+        const { db, doc, getDoc } = window.__firebase;
+        try {
+            setCloudStatus('syncing', '讀取中…');
+            const snap = await getDoc(doc(db, DOC_PATH));
+            if (snap.exists()) {
+                const data = snap.data();
+                if (data.criteria) criteria = data.criteria;
+                if (data.groupDefs) groupDefs = data.groupDefs;
+                if (data.groupScores) groupScores = data.groupScores;
+                if (data.studentScores) studentScores = data.studentScores;
+                editingCriteria = JSON.parse(JSON.stringify(criteria));
+                editingGroups = JSON.parse(JSON.stringify(groupDefs));
+                setCloudStatus('online', '已從雲端載入');
+                return true;
+            } else {
+                setCloudStatus('online', '已連線（尚無資料）');
+                return false;
+            }
+        } catch (err) {
+            console.error('Firebase 讀取失敗:', err);
+            setCloudStatus('error', '讀取失敗');
+            return false;
+        }
+    }
+
+    function setupRealtimeListener() {
+        if (!firebaseReady) return;
+        const { db, doc, onSnapshot } = window.__firebase;
+
+        if (unsubscribeSnapshot) unsubscribeSnapshot();
+
+        unsubscribeSnapshot = onSnapshot(doc(db, DOC_PATH), (snap) => {
+            if (!snap.exists()) return;
+            // 避免自己儲存時觸發
+            if (isRemoteUpdate) return;
+
+            const data = snap.data();
+            // 檢查是否有實際變更
+            const currentData = getFirebaseData();
+            const newData = {
+                criteria: data.criteria || currentData.criteria,
+                groupDefs: data.groupDefs || currentData.groupDefs,
+                groupScores: data.groupScores || currentData.groupScores,
+                studentScores: data.studentScores || currentData.studentScores
+            };
+
+            // 簡單比對：更新本地
+            if (data.updatedAt && data.updatedAt !== currentData.updatedAt) {
+                isRemoteUpdate = true;
+                criteria = newData.criteria;
+                groupDefs = newData.groupDefs;
+                groupScores = newData.groupScores;
+                studentScores = newData.studentScores;
+                editingCriteria = JSON.parse(JSON.stringify(criteria));
+                editingGroups = JSON.parse(JSON.stringify(groupDefs));
+
+                // 重新渲染
+                renderCriteriaSetup();
+                renderGroupsSetup();
+                refreshScoringView();
+
+                setCloudStatus('online', '已同步（遠端更新）');
+                setTimeout(() => { isRemoteUpdate = false; }, 500);
+            }
+        }, (err) => {
+            console.error('Firebase 監聽失敗:', err);
+            setCloudStatus('error', '監聽失敗');
+        });
+    }
+
+    // ============================================================
+    // 評分面板渲染
+    // ============================================================
+    function refreshScoringView() {
+        populateSelects();
+        updateFilterTags();
+        renderWeightsDisplay();
+        renderGroups();
+        renderStudents();
+        updateStats();
+        updateGroupStats();
+        updateFeedbackSummary();
+    }
+
+    function getAllClasses() {
+        return [...new Set(groupDefs.map(g => g.className))].sort();
+    }
+    function getAllGroupNames() {
+        return [...new Set(groupDefs.map(g => g.groupName))].sort();
+    }
+
+    function populateSelects() {
+        const classSelect = document.getElementById('classSelect');
+        const groupSelect = document.getElementById('groupSelect');
+        const curClass = classSelect.value;
+        const curGroup = groupSelect.value;
+
+        classSelect.innerHTML = '<option value="all">全部班級</option>';
+        getAllClasses().forEach(c => {
+            const o = document.createElement('option');
+            o.value = c; o.textContent = c;
+            classSelect.appendChild(o);
+        });
+        groupSelect.innerHTML = '<option value="all">全部組別</option>';
+        getAllGroupNames().forEach(g => {
+            const o = document.createElement('option');
+            o.value = g; o.textContent = g;
+            groupSelect.appendChild(o);
+        });
+
+        if ([...classSelect.options].some(o => o.value === curClass)) classSelect.value = curClass;
+        if ([...groupSelect.options].some(o => o.value === curGroup)) groupSelect.value = curGroup;
+    }
+
+    function updateFilterTags() {
+        const container = document.getElementById('activeFilters');
+        container.innerHTML = '';
+        if (currentClassFilter !== 'all') {
+            const tag = document.createElement('div');
+            tag.className = 'filter-tag';
+            tag.innerHTML = `🏫 ${currentClassFilter} <button>✕</button>`;
+            tag.querySelector('button').addEventListener('click', () => {
+                document.getElementById('classSelect').value = 'all';
+                currentClassFilter = 'all';
+                refreshScoringView();
+            });
+            container.appendChild(tag);
+        }
+        if (currentGroupFilter !== 'all') {
+            const tag = document.createElement('div');
+            tag.className = 'filter-tag';
+            tag.innerHTML = `👥 ${currentGroupFilter} <button>✕</button>`;
+            tag.querySelector('button').addEventListener('click', () => {
+                document.getElementById('groupSelect').value = 'all';
+                currentGroupFilter = 'all';
+                refreshScoringView();
+            });
+            container.appendChild(tag);
+        }
+    }
+
+    function getFilteredGroups() {
+        return groupDefs.filter(g => {
+            const cm = currentClassFilter === 'all' || g.className === currentClassFilter;
+            const gm = currentGroupFilter === 'all' || g.groupName === currentGroupFilter;
+            return cm && gm;
+        });
+    }
+
+    function getFilteredStudents() {
+        const result = [];
+        getFilteredGroups().forEach(g => {
+            g.members.forEach(m => {
+                result.push({
+                    className: g.className,
+                    groupName: g.groupName,
+                    name: m.name,
+                    studentId: m.studentId
+                });
+            });
+        });
+        return result.sort((a, b) => a.studentId.localeCompare(b.studentId));
+    }
+
+    function renderWeightsDisplay() {
+        const container = document.getElementById('weightsDisplay');
+        container.innerHTML = criteria.map(c => `
+            <div style="display:flex; justify-content:space-between; font-size:0.9rem; padding:0.2rem 0;">
+                <span>${c.icon} ${c.label}</span> <strong>${c.weight}%</strong>
+            </div>
+        `).join('');
+    }
+
+    function renderGroups() {
+        const container = document.getElementById('groupList');
+        container.innerHTML = '';
+        const filtered = getFilteredGroups();
+
+        if (filtered.length === 0) {
+            container.innerHTML = '<div class="empty-state">📭 目前篩選條件下沒有小組</div>';
+            return;
+        }
+
+        filtered.forEach(g => {
+            const gk = groupKey(g.className, g.groupName);
+            const scores = groupScores[gk] || {};
+            const total = computeTotal(scores);
+            const fb = getFeedback(total);
+
+            const item = document.createElement('div');
+            item.className = 'student-item group-item';
+
+            const header = document.createElement('div');
+            header.className = 'student-header';
+            header.innerHTML = `
+                <div class="student-name">
+                    <span class="avatar group">👥</span>
+                    ${g.groupName}
+                    <span class="class-tag">🏫 ${g.className}</span>
+                    <span class="member-count">${g.members.length} 位成員</span>
+                </div>
+                <div class="total-badge group-badge">總分 <span class="total-value">${total.toFixed(1)}</span></div>
+            `;
+            item.appendChild(header);
+
+            criteria.forEach(c => {
+                const val = scores[c.key] ?? 0;
+                const sg = document.createElement('div');
+                sg.className = 'slider-group';
+                sg.innerHTML = `
+                    <label>${c.icon} ${c.label} <span class="weight">(${c.weight}%)</span></label>
+                    <input type="range" min="0" max="${c.max}" step="${c.max > 20 ? 1 : 0.5}" value="${val}" data-gk="${gk}" data-criterion="${c.key}" class="group-slider">
+                    <div class="score-value" id="gv-${gk.replace(/\W/g, '_')}-${c.key}">${val}</div>
+                `;
+                item.appendChild(sg);
+            });
+
+            const note = document.createElement('div');
+            note.className = 'rubric-note';
+            note.innerHTML = `
+                <span><i>小組評核</i> 整組共用</span>
+                <span>👥 ${g.members.map(m => `${m.name}(${m.studentId})`).join('、')}</span>
+            `;
+            item.appendChild(note);
+
+            const fbd = document.createElement('div');
+            fbd.style.fontSize = '0.8rem';
+            fbd.style.marginTop = '0.6rem';
+            fbd.style.color = '#475569';
+            fbd.innerHTML = `${fb.emoji} ${fb.text}`;
+            item.appendChild(fbd);
+
+            container.appendChild(item);
+        });
+
+        document.querySelectorAll('.group-slider').forEach(sl => {
+            sl.addEventListener('input', onGroupSliderChange);
+        });
+    }
+
+    function renderStudents() {
+        const container = document.getElementById('studentList');
+        container.innerHTML = '';
+        const filtered = getFilteredStudents();
+        document.getElementById('studentCountBadge').textContent = `${filtered.length} 人`;
+
+        if (filtered.length === 0) {
+            container.innerHTML = '<div class="empty-state">📭 目前篩選條件下沒有學生</div>';
+            return;
+        }
+
+        filtered.forEach(stu => {
+            const sk = studentKey(stu.className, stu.groupName, stu.studentId);
+            const scores = studentScores[sk] || {};
+            const total = computeTotal(scores);
+            const fb = getFeedback(total);
+
+            const item = document.createElement('div');
+            item.className = 'student-item';
+
+            const header = document.createElement('div');
+            header.className = 'student-header';
+            header.innerHTML = `
+                <div class="student-name">
+                    <span class="avatar">${stu.name.charAt(0)}</span>
+                    ${stu.name}
+                    <span class="student-id-tag">🆔 ${stu.studentId}</span>
+                    <span class="class-tag">🏫 ${stu.className}</span>
+                    <span class="group-tag">👥 ${stu.groupName}</span>
+                </div>
+                <div class="total-badge">總分 <span class="total-value">${total.toFixed(1)}</span></div>
+            `;
+            item.appendChild(header);
+
+            criteria.forEach(c => {
+                const val = scores[c.key] ?? 0;
+                const sg = document.createElement('div');
+                sg.className = 'slider-group';
+                sg.innerHTML = `
+                    <label>${c.icon} ${c.label} <span class="weight">(${c.weight}%)</span></label>
+                    <input type="range" min="0" max="${c.max}" step="${c.max > 20 ? 1 : 0.5}" value="${val}" data-sk="${sk}" data-criterion="${c.key}" class="student-slider">
+                    <div class="score-value" id="sv-${sk.replace(/\W/g, '_')}-${c.key}">${val}</div>
+                `;
+                item.appendChild(sg);
+            });
+
+            const note = document.createElement('div');
+            note.className = 'rubric-note';
+            note.innerHTML = `<span><i>個人評核</i> 獨立評分</span><span>⏱️ 可重測取最高</span>`;
+            item.appendChild(note);
+
+            const fbd = document.createElement('div');
+            fbd.style.fontSize = '0.8rem';
+            fbd.style.marginTop = '0.6rem';
+            fbd.style.color = '#475569';
+            fbd.innerHTML = `${fb.emoji} ${fb.text}`;
+            item.appendChild(fbd);
+
+            container.appendChild(item);
+        });
+
+        document.querySelectorAll('.student-slider').forEach(sl => {
+            sl.addEventListener('input', onStudentSliderChange);
+        });
+    }
+
+    function onGroupSliderChange(e) {
+        const sl = e.target;
+        const gk = sl.dataset.gk;
+        const ck = sl.dataset.criterion;
+        const val = parseFloat(sl.value);
+        if (!groupScores[gk]) groupScores[gk] = {};
+        groupScores[gk][ck] = val;
+
+        const disp = document.getElementById(`gv-${gk.replace(/\W/g, '_')}-${ck}`);
+        if (disp) disp.textContent = val;
+
+        const item = sl.closest('.student-item');
+        const total = computeTotal(groupScores[gk]);
+        const tv = item.querySelector('.total-value');
+        if (tv) tv.textContent = total.toFixed(1);
+        const fb = getFeedback(total);
+        const fbd = item.querySelector('div[style*="font-size: 0.8rem"]');
+        if (fbd) fbd.innerHTML = `${fb.emoji} ${fb.text}`;
+
+        updateGroupStats();
+        updateFeedbackSummary();
+        debouncedSave();
+    }
+
+    function onStudentSliderChange(e) {
+        const sl = e.target;
+        const sk = sl.dataset.sk;
+        const ck = sl.dataset.criterion;
+        const val = parseFloat(sl.value);
+        if (!studentScores[sk]) studentScores[sk] = {};
+        studentScores[sk][ck] = val;
+
+        const disp = document.getElementById(`sv-${sk.replace(/\W/g, '_')}-${ck}`);
+        if (disp) disp.textContent = val;
+
+        const item = sl.closest('.student-item');
+        const total = computeTotal(studentScores[sk]);
+        const tv = item.querySelector('.total-value');
+        if (tv) tv.textContent = total.toFixed(1);
+        const fb = getFeedback(total);
+        const fbd = item.querySelector('div[style*="font-size: 0.8rem"]');
+        if (fbd) fbd.innerHTML = `${fb.emoji} ${fb.text}`;
+
+        updateStats();
+        updateGroupStats();
+        updateFeedbackSummary();
+        debouncedSave();
+    }
+
+    function updateStats() {
+        const list = getFilteredStudents();
+        const totals = list.map(stu => computeTotal(studentScores[studentKey(stu.className, stu.groupName, stu.studentId)]));
+        const n = totals.length;
+        let avg = 0, max = 0, min = 0, pass = 0;
+        if (n > 0) {
+            avg = totals.reduce((a, b) => a + b, 0) / n;
+            max = Math.max(...totals);
+            min = Math.min(...totals);
+            pass = totals.filter(t => t >= 70).length;
+        }
+        document.getElementById('classAvg').textContent = avg.toFixed(1);
+        document.getElementById('classMax').textContent = max.toFixed(1);
+        document.getElementById('classMin').textContent = min.toFixed(1);
+        document.getElementById('passCount').textContent = `${pass} / ${n}`;
+        const rate = n > 0 ? (pass / n) * 100 : 0;
+        document.getElementById('classProgress').style.width = `${rate}%`;
+    }
+
+    function updateGroupStats() {
+        const container = document.getElementById('groupStatsContainer');
+        const filtered = getFilteredGroups();
+        if (filtered.length === 0) {
+            container.innerHTML = '<div class="empty-state">尚無小組資料</div>';
+            return;
+        }
+
+        let html = '<div class="group-stats-grid">';
+        filtered.forEach(g => {
+            const gk = groupKey(g.className, g.groupName);
+            const gTotal = computeTotal(groupScores[gk]);
+            const memberTotals = g.members.map(m => computeTotal(studentScores[studentKey(g.className, g.groupName, m.studentId)]));
+            const memberAvg = memberTotals.length > 0 ? memberTotals.reduce((a, b) => a + b, 0) / memberTotals.length : 0;
+            html += `
+                <div class="group-stat-item">
+                    <div class="group-name">👥 ${g.groupName} <span style="font-weight:400; color:#64748b;">(${g.className})</span></div>
+                    <div class="group-avg">${gTotal.toFixed(1)} <span style="font-size:0.7rem; font-weight:400; color:#64748b;">小組總分</span></div>
+                    <div class="group-count">成員 ${g.members.length} 人 · 個人平均 ${memberAvg.toFixed(1)}</div>
+                    <div class="progress-bar-bg" style="margin-top:0.4rem; height:5px;">
+                        <div class="progress-bar-fill group" style="width:${Math.min(gTotal, 100)}%; height:5px;"></div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
+    function updateFeedbackSummary() {
+        const summaryDiv = document.getElementById('feedbackSummary');
+        const students = getFilteredStudents();
+        const groups = getFilteredGroups();
+
+        if (students.length === 0 && groups.length === 0) {
+            summaryDiv.innerHTML = '<p><span class="emoji">📭</span> 目前沒有符合篩選條件的資料</p>';
+            return;
+        }
+
+        let html = '';
+
+        if (students.length > 0) {
+            const totals = students.map(stu => computeTotal(studentScores[studentKey(stu.className, stu.groupName, stu.studentId)]));
+            const avg = totals.reduce((a, b) => a + b, 0) / totals.length;
+            const pass = totals.filter(t => t >= 70).length;
+            const weakest = students.reduce((acc, stu) => {
+                const t = computeTotal(studentScores[studentKey(stu.className, stu.groupName, stu.studentId)]);
+                return t < acc.total ? { name: stu.name, studentId: stu.studentId, total: t } : acc;
+            }, { name: '', studentId: '', total: 101 });
+
+            html += `
+                <p><span class="emoji">🧑</span> 個人平均：<strong>${avg.toFixed(1)}</strong> 分 · 達標 ${pass}/${students.length} 人</p>
+                <p><span class="emoji">📉</span> 個人需關注：<strong>${weakest.name || '—'}</strong>${weakest.studentId ? `(${weakest.studentId})` : ''}（${weakest.total.toFixed(1)} 分）</p>
+            `;
+        }
+
+        if (groups.length > 0) {
+            const gt = groups.map(g => computeTotal(groupScores[groupKey(g.className, g.groupName)]));
+            const gAvg = gt.reduce((a, b) => a + b, 0) / gt.length;
+            const best = groups.reduce((acc, g) => {
+                const t = computeTotal(groupScores[groupKey(g.className, g.groupName)]);
+                return t > acc.total ? { name: g.groupName, total: t } : acc;
+            }, { name: '', total: 0 });
+            html += `<p><span class="emoji">👥</span> 小組平均：<strong>${gAvg.toFixed(1)}</strong> 分 · 最佳：<strong>${best.name}</strong>（${best.total.toFixed(1)} 分）</p>`;
+        }
+
+        summaryDiv.innerHTML = html;
+    }
+
+    function resetScores() {
+        groupDefs.forEach(g => {
+            const gk = groupKey(g.className, g.groupName);
+            criteria.forEach(c => {
+                groupScores[gk][c.key] = Math.round(c.max * 0.75);
+            });
+            g.members.forEach(m => {
+                const sk = studentKey(g.className, g.groupName, m.studentId);
+                criteria.forEach(c => {
+                    studentScores[sk][c.key] = Math.round(c.max * 0.75);
+                });
+            });
+        });
+        refreshScoringView();
+        saveToFirebase();
+        showToast('↺ 分數已重置為預設值');
+    }
+
+    // ============================================================
+    // 匯出 CSV
+    // ============================================================
+    function exportCSV() {
+        const students = getFilteredStudents();
+        const groups = getFilteredGroups();
+
+        if (students.length === 0 && groups.length === 0) {
+            showToast('目前沒有符合篩選條件的資料可匯出');
+            return;
+        }
+
+        const rows = [];
+        const header = ['類型', '班級', '組別', '學號', '姓名', ...criteria.map(c => `${c.label}(${c.weight}%)`), '總分', '達標'];
+        rows.push(header);
+
+        groups.forEach(g => {
+            const gk = groupKey(g.className, g.groupName);
+            const scores = groupScores[gk] || {};
+            const total = computeTotal(scores);
+            rows.push([
+                '小組',
+                g.className,
+                g.groupName,
+                '',
+                `（${g.members.length}位成員）`,
+                ...criteria.map(c => scores[c.key] ?? 0),
+                total.toFixed(1),
+                total >= 70 ? '是' : '否'
+            ]);
+        });
+
+        students.forEach(stu => {
+            const sk = studentKey(stu.className, stu.groupName, stu.studentId);
+            const scores = studentScores[sk] || {};
+            const total = computeTotal(scores);
+            rows.push([
+                '個人',
+                stu.className,
+                stu.groupName,
+                stu.studentId,
+                stu.name,
+                ...criteria.map(c => scores[c.key] ?? 0),
+                total.toFixed(1),
+                total >= 70 ? '是' : '否'
+            ]);
+        });
+
+        const csvContent = rows.map(row =>
+            row.map(cell => {
+                const str = String(cell);
+                if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                    return `"${str.replace(/"/g, '""')}"`;
+                }
+                return str;
+            }).join(',')
+        ).join('\n');
+
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+
+        const now = new Date();
+        const pad = n => String(n).padStart(2, '0');
+        const filename = `形成性評核_${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.csv`;
+
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        showToast(`✅ 已匯出 ${filename}（共 ${rows.length - 1} 筆）`);
+    }
+
+    // ============================================================
+    // 文字摘要匯出
+    // ============================================================
+    function exportSummary() {
+        const students = getFilteredStudents();
+        const groups = getFilteredGroups();
+        if (students.length === 0 && groups.length === 0) {
+            showToast('目前沒有符合篩選條件的資料');
+            return;
+        }
+
+        let text = '📋 形成性評核摘要\n';
+        text += `篩選：${currentClassFilter === 'all' ? '全部班級' : currentClassFilter} / ${currentGroupFilter === 'all' ? '全部組別' : currentGroupFilter}\n`;
+        text += '====================\n';
+
+        if (groups.length > 0) {
+            text += '\n【小組評核】\n';
+            groups.forEach(g => {
+                const gk = groupKey(g.className, g.groupName);
+                const total = computeTotal(groupScores[gk]);
+                text += `\n👥 ${g.className} · ${g.groupName}（${g.members.length} 位成員）\n`;
+                text += `   總分：${total.toFixed(1)}\n`;
+                criteria.forEach(c => {
+                    text += `   ${c.icon} ${c.label}：${groupScores[gk][c.key] ?? 0} / ${c.max}\n`;
+                });
+                text += `   成員：${g.members.map(m => `${m.name}(${m.studentId})`).join('、')}\n`;
+            });
+        }
+
+        if (students.length > 0) {
+            text += '\n【個人評核】\n';
+            const map = new Map();
+            students.forEach(stu => {
+                const k = `${stu.className} · ${stu.groupName}`;
+                if (!map.has(k)) map.set(k, []);
+                map.get(k).push(stu);
+            });
+            [...map.keys()].sort().forEach(k => {
+                text += `\n${k}\n`;
+                map.get(k).forEach(stu => {
+                    const sk = studentKey(stu.className, stu.groupName, stu.studentId);
+                    const total = computeTotal(studentScores[sk]);
+                    text += `  ${stu.studentId} ${stu.name}：總分 ${total.toFixed(1)}\n`;
+                    criteria.forEach(c => {
+                        text += `    ${c.icon} ${c.label}：${studentScores[sk][c.key] ?? 0} / ${c.max}\n`;
+                    });
+                });
+            });
+        }
+
+        text += '\n====================\n';
+        text += `個人平均: ${document.getElementById('classAvg').textContent} 分\n`;
+        text += `達標率: ${document.getElementById('passCount').textContent}\n`;
+
+        alert(text);
+    }
+
+    // ============================================================
+    // 初始化
+    // ============================================================
+    async function init() {
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+        });
+
+        // 先渲染預設
+        renderCriteriaSetup();
+        renderGroupsSetup();
+
+        // 嘗試從 Firebase 載入
+        if (firebaseReady) {
+            const loaded = await loadFromFirebase();
+            if (loaded) {
+                showToast('☁️ 已從 Firebase 載入資料');
+            }
+            setupRealtimeListener();
+        }
+
+        // 若雲端無資料，用預設初始化分數
+        if (Object.keys(groupScores).length === 0) {
+            applySetup();
+        } else {
+            refreshScoringView();
+        }
+
+        // 按鈕綁定
+        document.getElementById('addCriterionBtn').addEventListener('click', () => {
+            editingCriteria.push({
+                key: 'custom_' + Date.now(),
+                label: '新項目',
+                weight: 0,
+                max: 100,
+                icon: '📌'
+            });
+            renderCriteriaSetup();
+        });
+
+        document.getElementById('addGroupBtn').addEventListener('click', () => {
+            editingGroups.push({
+                className: '',
+                groupName: '',
+                members: [{ name: '', studentId: '' }]
+            });
+            renderGroupsSetup();
+            document.getElementById('groupCountBadge').textContent = `${editingGroups.length} 組`;
+        });
+
+        document.getElementById('applySetupBtn').addEventListener('click', applySetup);
+
+        document.getElementById('resetSetupBtn').addEventListener('click', () => {
+            editingCriteria = JSON.parse(JSON.stringify(DEFAULT_CRITERIA));
+            editingGroups = JSON.parse(JSON.stringify(DEFAULT_GROUPS));
+            renderCriteriaSetup();
+            renderGroupsSetup();
+            showToast('已恢復預設設定（尚未套用）');
+        });
+
+        document.getElementById('clearAllBtn').addEventListener('click', () => {
+            if (!confirm('確定要清空所有組別與學生名單嗎？')) return;
+            editingGroups = [];
+            renderGroupsSetup();
+            document.getElementById('groupCountBadge').textContent = '0 組';
+            showToast('已清空組別（尚未套用）');
+        });
+
+        document.getElementById('classSelect').addEventListener('change', (e) => {
+            currentClassFilter = e.target.value;
+            refreshScoringView();
+        });
+        document.getElementById('groupSelect').addEventListener('change', (e) => {
+            currentGroupFilter = e.target.value;
+            refreshScoringView();
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', resetScores);
+        document.getElementById('exportBtn').addEventListener('click', exportSummary);
+        document.getElementById('exportCsvBtn').addEventListener('click', exportCSV);
+    }
+
+    window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
